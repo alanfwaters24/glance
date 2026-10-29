@@ -153,6 +153,47 @@ def get_bins_ev_aircraft(cal):
     return out
 
 
+CONTENT_CACHE_FILE = os.path.join(DATA_DIR, "content_cache.json")
+CONTENT_STALE_AFTER = 36 * 3600  # hours -- covers weekends (task runs weekdays only)
+
+
+def get_cached_content():
+    """Sections filled by the daily content-gathering Claude task (news, scheduled
+    tasks, Voiceless Druid/ALIS content, home-tech projects) -- GLANCE's own server
+    can't do web search or read claude.ai memory, so a separate scheduled task writes
+    data/content_cache.json directly on this box each morning before the push."""
+    try:
+        with open(CONTENT_CACHE_FILE) as f:
+            cache = json.load(f)
+    except Exception:
+        return {
+            "ai_news_uk_news": {"stale": True, "reason": "no content cache yet"},
+            "voiceless_druid_alis_content": {"stale": True, "reason": "no content cache yet"},
+            "scheduled_tasks": {"stale": True, "reason": "no content cache yet"},
+            "home_tech_projects": {"stale": True, "reason": "no content cache yet"},
+        }
+
+    generated_at = cache.get("generated_at")
+    stale = True
+    if generated_at:
+        try:
+            age = time.time() - time.mktime(time.strptime(generated_at[:19], "%Y-%m-%dT%H:%M:%S"))
+            stale = age > CONTENT_STALE_AFTER
+        except Exception:
+            stale = True
+
+    out = {}
+    for key in ("ai_news_uk_news", "voiceless_druid_alis_content", "scheduled_tasks", "home_tech_projects"):
+        val = cache.get(key)
+        if val is None:
+            out[key] = {"stale": True, "reason": "missing from cache"}
+        elif stale:
+            out[key] = dict(val, stale=True, cache_generated_at=generated_at) if isinstance(val, dict) else {"stale": True, "value": val}
+        else:
+            out[key] = val
+    return out
+
+
 def build_brief():
     """Assemble the daily briefing. Sections get filled in one at a time."""
     cal = get_calendar()
@@ -166,10 +207,7 @@ def build_brief():
             "bins_ev_aircraft": get_bins_ev_aircraft(cal),
             "hive_zigbee": {"status": CONFIG.get("hive_zigbee_status", "not set")},
             "office_damp": {"status": "not yet monitoring"},
-            "ai_news_uk_news": None,
-            "voiceless_druid_alis_content": None,
-            "scheduled_tasks": None,
-            "home_tech_projects": None,
+            **get_cached_content(),
         },
     }
     with lock:
