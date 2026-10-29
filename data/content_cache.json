@@ -1,0 +1,123 @@
+{
+  "generated_at": "2026-10-29T19:58:23",
+  "ai_news_uk_news": {
+    "ai_advancements": [
+      {
+        "headline": "Google DeepMind unveiled Genie 4, a new world model for real-time interactive simulation with native audio and live controls.",
+        "source": "Google / Digg"
+      },
+      {
+        "headline": "Google launched Gemini 4 Carbon, a cybersecurity-focused AI model scoring 88.2% on SEC-bench Pro; early access limited to selected cyber defenders.",
+        "source": "The Neuron"
+      },
+      {
+        "headline": "Anthropic's Claude added ready-made legal review tools for contract review, legal citation checks, and regulatory tracking.",
+        "source": "The Neuron"
+      },
+      {
+        "headline": "OpenAI set up an election monitoring center with hundreds of staff watching for misuse of ChatGPT during the Nov 3 US midterms.",
+        "source": "The Neuron"
+      },
+      {
+        "headline": "Britain proposed roughly $160 million in funding for its AI Security Institute's testing work.",
+        "source": "The Neuron"
+      }
+    ],
+    "uk_news": [
+      {
+        "headline": "MPs debated Chancellor John Healey's first Autumn Budget in the Commons, which included a one-off \u00a3100 energy payment, reversed ISA allowance cuts, and a 3.9% national living wage rise from April 2027.",
+        "source": "Press Gazette / Which?"
+      },
+      {
+        "headline": "Andy Burnham marked 100 days as Prime Minister.",
+        "source": "Press Gazette"
+      },
+      {
+        "headline": "King Charles and Queen Camilla began a Caribbean visit, starting with a stop in the Bahamas.",
+        "source": "Press Gazette"
+      },
+      {
+        "headline": "A man was sentenced for sending death threats to Kemi Badenoch.",
+        "source": "Press Gazette"
+      },
+      {
+        "headline": "Prospect union staff went on strike at all V&A sites.",
+        "source": "Press Gazette"
+      }
+    ]
+  },
+  "scheduled_tasks": {
+    "tasks": [
+      {
+        "name": "GLANCE content gather",
+        "cadence": "weekdays at 6:10am (Europe/London)",
+        "last_run_status": "PENDING",
+        "last_run_at": "2026-10-29T19:55:13Z"
+      },
+      {
+        "name": "Recheck ALIS live camera smoothness",
+        "cadence": "one-time, 6 Nov 2026 at 9:00am UTC",
+        "last_run_status": "never run yet",
+        "last_run_at": null
+      },
+      {
+        "name": "Voicelessduid: Reddit Helper_NEW",
+        "cadence": "daily at 10:00am (Europe/London), only acts Tue/Fri",
+        "last_run_status": "SUCCEEDED",
+        "last_run_at": "2026-10-29T10:15:03Z"
+      },
+      {
+        "name": "Voicelessdruid: Blog Post Writer_NEW",
+        "cadence": "daily at 9:00am (Europe/London), only acts Mon/Thu",
+        "last_run_status": "SUCCEEDED",
+        "last_run_at": "2026-10-29T09:04:19Z"
+      },
+      {
+        "name": "Voicelessdruid: Pinterest Pin Bot_NEW",
+        "cadence": "daily at 8:45am (Europe/London), only acts Mon/Wed/Fri",
+        "last_run_status": "SUCCEEDED",
+        "last_run_at": "2026-10-29T08:45:52Z"
+      },
+      {
+        "name": "Voicelessdruid: X Auto-Post Bot_NEW",
+        "cadence": "daily at 12:00pm (Europe/London), only acts Mon/Wed/Fri",
+        "last_run_status": "SUCCEEDED",
+        "last_run_at": "2026-10-29T12:09:22Z"
+      },
+      {
+        "name": "Voiceless Druid: Daily Guide Builder_NEW",
+        "cadence": "weekdays at 9:00am (Europe/London)",
+        "last_run_status": "SUCCEEDED",
+        "last_run_at": "2026-10-29T09:12:46Z"
+      },
+      {
+        "name": "Bonsai model watch",
+        "cadence": "weekly, Monday at 9:00am UTC",
+        "last_run_status": "SUCCEEDED",
+        "last_run_at": "2026-10-26T09:13:28Z"
+      },
+      {
+        "name": "Morning brief",
+        "cadence": "weekdays at 6:30am UTC",
+        "last_run_status": "SUCCEEDED",
+        "last_run_at": "2026-10-29T06:36:39Z"
+      },
+      {
+        "name": "Quietwire \u2014 Voiceless Druid support check-in",
+        "cadence": "daily at 7am, 11am, 3pm and 7pm UTC",
+        "last_run_status": "SUCCEEDED",
+        "last_run_at": "2026-10-29T19:05:45Z"
+      }
+    ]
+  },
+  "voiceless_druid_alis_content": {
+    "guide_queue": "All 10 planned Voiceless Druid guides are now built \u2014 the queue is complete as of 29 Oct 2026. Guides 1-8 are confirmed live/published on Payhip; guides 9 (Security Cameras) and 10 (Router Security Hardening) are built but still hidden, awaiting Alan's review and publish. No more topics are queued \u2014 next step is Alan reviewing and publishing the last two, not building anything new.",
+    "faceless_channel": "Planning a faceless content channel (TikTok/Shorts/Reels + Voiceless Druid blog, YouTube later) showing how ALIS gets built, with the first test video planned around the F1 live module. As of 29 Oct: editing software (DaVinci Resolve) and storage/workflow are settled, a branded animated intro and a voice-reactive ALIS roundel are built, and the current step is a 'speak-roundel' tool so the real ALIS Piper voice reads the script for the spoken intro rather than Alan reading it himself."
+  },
+  "home_tech_projects": {
+    "alis_os": "ALIS OS is Alan's long-term plan to turn his home-automation stack into a real bootable NixOS-based Linux distro (teal/violet ALIS Glass theme, dashboard-first boot, OnlyOffice built in), designed to eventually run on old/low-power and ARM hardware too. Today it exists as the ALIS ecosystem \u2014 an HTML dashboard on the NAS, plus 'the Brain' (Home Assistant + local Ollama/Whisper/Piper) and VERA for AI room-scanning. Door locks/cameras and network segmentation (VLANs) stay parked until the home network rebuild is done.",
+    "roam": "ROAM (renamed from ALIS Car Mode) is a voice assistant + dashboard for the car, walking or exercise, targeting Android Auto as a web app first. Build order is voice (via the Brain) first, then navigation, music, then messages \u2014 WhatsApp integration is on hold pending Alan's go-ahead since it needs an unofficial, ToS-risky library. The private GitHub repo is created; a port (3508) is proposed but not yet confirmed.",
+    "network_overhaul": "The network rebuild is done \u2014 switched to a TP-Link Deco BE68 + BE25 mesh (instead of a pricier Ubiquiti VLAN setup) for simplicity, installed and walk-tested 10-12 Oct. The IoT Network isolation feature is on, keeping the Tapo camera, Hive hub and Govee LEDs separated from the main network. Remaining open item: picking an outbound VPN provider for the router's VPN Client feature, and confirming it won't clash with Tailscale.",
+    "home_llm": "The home AI project has progressed from a from-scratch tiny GPT experiment to a working local voice layer: 'ALIS AI' (a fine-tuned Qwen3-4B+LoRA model) is packaged as a Windows app and acts as the voice/personality layer only, with Claude Haiku currently handling the 'thinking' via the internet. An Intel Arc B570 GPU has been added to the NAS for local, GPU-accelerated fallback inference (Qwen3-4B and a coding model) if the internet or Haiku are unavailable. House rules for voice control (PINs, child restrictions on locks/heating/cameras) are defined."
+  }
+}
