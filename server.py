@@ -66,6 +66,19 @@ def save_state(state):
     os.replace(tmp, STATE_FILE)
 
 
+def get_passthrough(path):
+    """GET a JSON endpoint from alis-live (same box, localhost) and return it as-is."""
+    base = CONFIG.get("alis_live_base", "http://127.0.0.1:8080")
+    req = urllib.request.Request(base + path)
+    try:
+        with urllib.request.urlopen(req, timeout=10) as r:
+            return json.load(r)
+    except urllib.error.HTTPError as e:
+        return {"error": f"alis-live said HTTP {e.code}"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
 def get_calendar():
     """Today + tomorrow's events from the Waters Family calendar (household-wide, unfiltered)."""
     ha_url = CONFIG.get("ha_url")
@@ -106,17 +119,52 @@ def get_calendar():
     return out
 
 
+def get_bins_ev_aircraft(cal):
+    """Bins: pull from the calendar entries already fetched (titles containing 'bin').
+    EV: trimmed summary from alis-live's /api/ev. Aircraft: military/emergency only, from /api/flights."""
+    out = {}
+
+    bins = []
+    if isinstance(cal, dict):
+        for day_key in ("today", "tomorrow"):
+            for e in cal.get(day_key, []):
+                if "bin" in e["title"].lower():
+                    bins.append({"day": day_key, "title": e["title"]})
+    out["bins"] = bins
+
+    ev = get_passthrough("/api/ev")
+    if "error" in ev:
+        out["ev"] = ev
+    else:
+        out["ev"] = {
+            "charger_state": ev.get("charger", {}).get("state"),
+            "today_kwh": ev.get("today"),
+            "month_kwh": ev.get("month", {}).get("kwh"),
+            "month_cost": ev.get("month", {}).get("cost"),
+        }
+
+    flights = get_passthrough("/api/flights")
+    if "error" in flights:
+        out["aircraft"] = flights
+    else:
+        nearby_mil = [p for p in flights.get("planes", []) if p.get("mil")]
+        out["aircraft"] = {"military_nearby": nearby_mil, "emergency": flights.get("emergency", [])}
+
+    return out
+
+
 def build_brief():
     """Assemble the daily briefing. Sections get filled in one at a time."""
+    cal = get_calendar()
     brief = {
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "version": VERSION,
         "sections": {
-            "calendar": get_calendar(),
-            "weather_alerts": None,
-            "vault_health": None,
-            "bins_ev_aircraft": None,
-            "hive_zigbee": None,
+            "calendar": cal,
+            "weather_alerts": get_passthrough("/api/alerts"),
+            "vault_health": get_passthrough("/api/vault"),
+            "bins_ev_aircraft": get_bins_ev_aircraft(cal),
+            "hive_zigbee": {"status": CONFIG.get("hive_zigbee_status", "not set")},
             "office_damp": {"status": "not yet monitoring"},
             "ai_news_uk_news": None,
             "voiceless_druid_alis_content": None,
