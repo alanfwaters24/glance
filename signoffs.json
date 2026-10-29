@@ -1,0 +1,63 @@
+{
+  "_about": "GLANCE spoken sign-offs, in ALIS's voice (calm and precise, JARVIS / Star Trek computer, feminine tone, dry wit used lightly). Each slot is a pool of lines; GLANCE picks one per slot per ISO week, so the line changes every Monday and stays the same all week. Add, remove or reword lines freely - keep them as plain spoken sentences (no symbols), and avoid lines that claim everything is fine, since the brief may have just mentioned a warning.",
+  "monday": [
+    "That concludes your Monday briefing. Have a good start to the week.",
+    "Briefing complete. New week, clean slate. Have a good one.",
+    "That's everything for this Monday morning. I'll keep things running here. Have a good week.",
+    "Monday briefing concluded. One day at a time. Have a good start to the week.",
+    "That's your Monday briefing. Let's make it a good week.",
+    "End of briefing. Mondays are easier with a plan, and now you have one. Have a good day."
+  ],
+  "weekday_morning": [
+    "That concludes this morning's briefing. Have a good day.",
+    "Briefing complete. I'll keep an eye on things here while you're out. Have a great day.",
+    "That's everything for this morning. Go and have a good day, I'll hold the fort.",
+    "End of briefing. If anything changes, you'll hear it from me first.",
+    "That's your morning briefing. Coffee is strongly recommended. Have a good day.",
+    "Briefing complete. Take care out there, and I'll see you later.",
+    "That's all for this morning. I'll be right here when you get back.",
+    "Morning briefing concluded. Make it a good one.",
+    "That's the lot for this morning. Have a productive day.",
+    "Briefing ends here. Have a great day, and travel safely."
+  ],
+  "friday": [
+    "That concludes your Friday briefing. The weekend is within reach. Have a great day.",
+    "Briefing complete. One more day, then the weekend. Have a good Friday.",
+    "That's everything for this Friday morning. Finish the week strong.",
+    "Friday briefing concluded. I've pencilled in a relaxing weekend for you. Have a great day.",
+    "That's your Friday briefing. Nearly there. Have a good one.",
+    "End of briefing. Happy Friday."
+  ],
+  "weekend_morning": [
+    "That concludes your weekend briefing. Enjoy the day.",
+    "Briefing complete. No rush this morning. Enjoy your weekend.",
+    "That's everything for now. Take it easy today.",
+    "Weekend briefing concluded. I'll keep things ticking over here. Enjoy yourselves.",
+    "That's your briefing. Make the most of the weekend.",
+    "End of briefing. Relax, I have the house covered."
+  ],
+  "afternoon": [
+    "That concludes this afternoon's update. Enjoy the rest of your day.",
+    "Update complete. I'll be here if you need me.",
+    "That's everything for now. Have a good afternoon.",
+    "End of update. Back to your afternoon.",
+    "That's your afternoon briefing. As you were.",
+    "Update concluded. Anything else, just ask."
+  ],
+  "evening": [
+    "That concludes this evening's update. Have a lovely evening.",
+    "That's everything for today. Time to put your feet up.",
+    "Update complete. Enjoy your evening.",
+    "End of update. I'll keep watch tonight.",
+    "That's the day wrapped up. Have a relaxing evening.",
+    "That's all for now. Have a good evening."
+  ],
+  "late": [
+    "That's everything for now. Sleep well.",
+    "Update complete. I'll keep watch overnight. Good night.",
+    "That's all for today. Rest well.",
+    "End of update. The house is in safe hands. Good night.",
+    "That concludes today. Good night.",
+    "That's everything. Get some rest."
+  ]
+}

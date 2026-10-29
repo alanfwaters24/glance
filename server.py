@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""GLANCE -- v0.3.6
+"""GLANCE -- v0.3.7
 
 Daily briefing module for ALIS. Replaces the claude.ai-scheduled morning
 brief: assembles a daily summary from existing ALIS data sources (never
 re-derives their logic) and serves it over a small JSON API, so it can be
 pushed at 6:30am weekdays via alis-push and answered by voice
 ("Hey ALIS, what's happening today").
+
+v0.3.7: sign-off lines come from signoffs.json (ALIS persona, rotated weekly per slot).
 
 v0.3.6: spoken brief ends with a time/day-aware sign-off.
 
@@ -59,7 +61,7 @@ import urllib.error
 import urllib.parse
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
-VERSION = "0.3.6"
+VERSION = "0.3.7"
 BASE = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE, "data")
 STATE_FILE = os.path.join(DATA_DIR, "glance_state.json")
@@ -400,19 +402,41 @@ def speakable(t):
     return t
 
 
+SIGNOFFS_FILE = os.path.join(BASE, "signoffs.json")
+_SIGNOFF_DEFAULTS = {
+    "monday": ["That's your GLANCE for this morning. Have a good start to the week."],
+    "weekday_morning": ["That's your GLANCE for this morning. Have a great day."],
+    "friday": ["That's your GLANCE for this morning. Have a great Friday, the weekend's nearly here."],
+    "weekend_morning": ["That's your GLANCE for this morning. Enjoy your weekend."],
+    "afternoon": ["That's your GLANCE for this afternoon. Enjoy the rest of your day."],
+    "evening": ["That's everything for today. Have a lovely evening."],
+    "late": ["That's everything for now. Sleep well."],
+}
+_SLOT_SEED = {"monday": 0, "weekday_morning": 3, "friday": 5, "weekend_morning": 1, "afternoon": 2, "evening": 4, "late": 6}
+
+
 def sign_off(now=None):
-    """v0.3.6: a proper ending instead of stopping dead after the last headline (time- and day-aware)."""
+    """v0.3.7: ALIS-persona sign-offs from signoffs.json (editable), one line per slot per ISO week -
+    the line changes every Monday and stays the same all week. Falls back to built-in lines."""
     now = now or datetime.datetime.now()
     h, wd = now.hour, now.weekday()
     if 5 <= h < 12:
-        tail = {0: "Have a good start to the week.", 4: "Have a great Friday, the weekend's nearly here.",
-                5: "Enjoy your weekend.", 6: "Enjoy your Sunday."}.get(wd, "Have a great day.")
-        return "That's your GLANCE for this morning. " + tail
-    if 12 <= h < 18:
-        return "That's your GLANCE for this afternoon. Enjoy the rest of your day."
-    if 18 <= h < 22:
-        return "That's everything for today. Have a lovely evening."
-    return "That's everything for now. Sleep well."
+        slot = "monday" if wd == 0 else "friday" if wd == 4 else "weekend_morning" if wd >= 5 else "weekday_morning"
+    elif 12 <= h < 18:
+        slot = "afternoon"
+    elif 18 <= h < 22:
+        slot = "evening"
+    else:
+        slot = "late"
+    pool = None
+    try:
+        with open(SIGNOFFS_FILE, encoding="utf-8") as f:
+            pool = [str(x).strip() for x in (json.load(f).get(slot) or []) if str(x).strip()]
+    except Exception:
+        pool = None
+    pool = pool or _SIGNOFF_DEFAULTS[slot]
+    y, w, _ = now.isocalendar()
+    return pool[(y * 53 + w + _SLOT_SEED[slot]) % len(pool)]
 
 
 def compose(brief):
