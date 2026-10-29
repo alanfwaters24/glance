@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""GLANCE -- v0.3.1
+"""GLANCE -- v0.3.2
 
 Daily briefing module for ALIS. Replaces the claude.ai-scheduled morning
 brief: assembles a daily summary from existing ALIS data sources (never
 re-derives their logic) and serves it over a small JSON API, so it can be
 pushed at 6:30am weekdays via alis-push and answered by voice
 ("Hey ALIS, what's happening today").
+
+v0.3.2: today's timed events that have already finished are left out (calendar
+  "finished_today" counts them); wind reported as wind_mph whatever unit HA uses.
 
 v0.3.1: GET /api/glance/cached (last brief + text, rebuilt if >15 min old or ?fresh=1)
   for the NEST GLANCE tile/panel, which reads it through alis-live's /api/glance proxy.
@@ -45,7 +48,7 @@ import urllib.error
 import urllib.parse
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
-VERSION = "0.3.1"
+VERSION = "0.3.2"
 BASE = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE, "data")
 STATE_FILE = os.path.join(DATA_DIR, "glance_state.json")
@@ -151,14 +154,28 @@ def get_calendar():
 
     today_str = start.date().isoformat()
     tomorrow_str = (start.date() + datetime.timedelta(days=1)).isoformat()
-    out = {"today": [], "tomorrow": []}
+    out = {"today": [], "tomorrow": [], "finished_today": 0}
     for e in events:
         summary = e.get("summary", "(untitled)")
         when = e.get("start", {})
+        fin = e.get("end", {})
         date_part = when.get("dateTime", when.get("date", ""))[:10]
         entry = {"title": summary, "when": when.get("dateTime") or when.get("date"),
-                 "all_day": "date" in when}
+                 "end": fin.get("dateTime") or fin.get("date"), "all_day": "date" in when}
         if date_part == today_str:
+            # v0.3.2: drop timed events that have already finished (Alan, 29 Oct 2026: the brief was
+            # reading out things from earlier in the day). Still-running ones (e.g. a shift) stay;
+            # all-day ones stay all day.
+            if not entry["all_day"]:
+                try:
+                    ends = datetime.datetime.fromisoformat(entry["end"] or entry["when"])
+                    if ends.tzinfo is None:
+                        ends = ends.astimezone()
+                    if ends <= now_local:
+                        out["finished_today"] += 1
+                        continue
+                except Exception:
+                    pass
             out["today"].append(entry)
         elif date_part == tomorrow_str:
             out["tomorrow"].append(entry)
@@ -187,12 +204,17 @@ def get_weather():
     if "error" in st:
         return st
     a = st.get("attributes", {})
+    # v0.3.2: wind always reported in mph (Alan's preference), whatever unit HA uses
+    wind, wunit = a.get("wind_speed"), str(a.get("wind_speed_unit") or "km/h").lower()
+    to_mph = {"km/h": 0.621371, "kmh": 0.621371, "m/s": 2.23694, "mph": 1.0, "kn": 1.15078, "knots": 1.15078, "ft/s": 0.681818}
+    wind_mph = round(float(wind) * to_mph.get(wunit, 0.621371), 1) if isinstance(wind, (int, float)) else None
     return {
         "entity": ent,
         "condition": st.get("state"),
         "temperature": a.get("temperature"),
         "unit": a.get("temperature_unit", "°C"),
-        "wind_speed": a.get("wind_speed"),
+        "wind_mph": wind_mph,
+        "wind_source_unit": wunit,
         "humidity": a.get("humidity"),
     }
 
@@ -313,6 +335,12 @@ def _events(cal, day):
         if "bin" in e["title"].lower():
             continue  # bins get their own line
         t = "" if e.get("all_day") else _hhmm(e.get("when") or "")
+        if t and e.get("end"):
+            try:   # already started (e.g. a shift) -> say when it ends instead
+                if datetime.datetime.fromisoformat(e["when"]).astimezone() <= datetime.datetime.now().astimezone():
+                    t = "until " + _hhmm(e["end"])
+            except Exception:
+                pass
         out.append((e["title"], t))
     return out
 
@@ -357,7 +385,7 @@ def compose(brief):
     if today:
         bits.append("Today: " + ", ".join(("%s %s" % (t, h)).strip() for t, h in today[:3]) + (" +%d more" % (len(today) - 3) if len(today) > 3 else ""))
     else:
-        bits.append("Nothing on the calendar today")
+        bits.append("Nothing else on today" if (cal or {}).get("finished_today") else "Nothing on the calendar today")
     if bins:
         bits.append("Bins: " + ", ".join(("%s (%s)" % (b["title"], b["day"])) for b in bins[:2]))
     if alerts:
@@ -372,7 +400,9 @@ def compose(brief):
     s = ["Good morning." if now.hour < 12 else ("Good afternoon." if now.hour < 18 else "Good evening.")]
     s.append("It's %s the %s of %s." % (now.strftime("%A"), _ordinal(now.day), now.strftime("%B")))
     if wx.get("condition") and wx.get("temperature") is not None:
-        s.append("Right now it's %s and %s degrees." % (_cond(wx["condition"], spoken=True), round(float(wx["temperature"]))))
+        wind = wx.get("wind_mph")
+        breeze = (", with wind around %d miles an hour" % round(wind)) if isinstance(wind, (int, float)) and wind >= 15 else ""
+        s.append("Right now it's %s and %s degrees%s." % (_cond(wx["condition"], spoken=True), round(float(wx["temperature"])), breeze))
     if alerts:
         s.append("There %s %d weather or emergency warning%s in force: %s." % (
             "is" if len(alerts) == 1 else "are", len(alerts), "" if len(alerts) == 1 else "s",
@@ -380,9 +410,9 @@ def compose(brief):
     if isinstance(cal, dict) and "error" in cal:
         s.append("I couldn't read the calendar.")
     elif today:
-        s.append("On the calendar today: " + ", ".join(("%s at %s" % (t, h)) if h else t for t, h in today[:5]) + ".")
+        s.append(("Still to come today: " if (cal or {}).get("finished_today") else "On the calendar today: ") + ", ".join((("%s %s" if h.startswith("until") else "%s at %s") % (t, h)) if h else t for t, h in today[:5]) + ".")
     else:
-        s.append("There's nothing on the calendar today.")
+        s.append("There's nothing else on the calendar today." if (cal or {}).get("finished_today") else "There's nothing on the calendar today.")
     if bins:
         s.append("Bins: " + ", ".join("%s %s" % (b["title"], b["day"]) for b in bins[:2]) + ".")
     if vault.get("level") in ("amber", "red"):
