@@ -27,7 +27,7 @@ import urllib.error
 import urllib.parse
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 BASE = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE, "data")
 STATE_FILE = os.path.join(DATA_DIR, "glance_state.json")
@@ -47,6 +47,8 @@ def load_config():
 
 CONFIG = load_config()
 PORT = int(os.environ.get("ALIS_GLANCE_PORT", CONFIG.get("port", 3512)))
+INGEST_PORT = int(CONFIG.get("ingest_port", 3513))
+CONTENT_CACHE_WRITE_TOKEN = CONFIG.get("content_cache_write_token")
 
 lock = threading.Lock()
 
@@ -238,7 +240,58 @@ class Handler(BaseHTTPRequestHandler):
         return self._json(404, {"error": "not found"})
 
 
+class IngestHandler(BaseHTTPRequestHandler):
+    """Tiny, separate listener used ONLY by the daily content-gathering task to push
+    data/content_cache.json. Deliberately kept on its own port/handler (not the main
+    API) so the only thing a leaked token or Funnel URL can ever do is overwrite this
+    one cache file -- no read access to calendar/VAULT/EV data, no other files."""
+
+    def log_message(self, *a):
+        pass
+
+    def _json(self, code, obj):
+        body = json.dumps(obj).encode()
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_POST(self):
+        if self.path.split("?")[0] != "/api/content_cache":
+            return self._json(404, {"error": "not found"})
+        if not CONTENT_CACHE_WRITE_TOKEN:
+            return self._json(503, {"error": "no write token configured"})
+        auth = self.headers.get("Authorization", "")
+        if auth != "Bearer " + CONTENT_CACHE_WRITE_TOKEN:
+            return self._json(401, {"error": "unauthorized"})
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+        except ValueError:
+            length = 0
+        if length <= 0 or length > 300000:
+            return self._json(400, {"error": "bad content-length"})
+        raw = self.rfile.read(length)
+        try:
+            data = json.loads(raw)
+        except Exception as e:
+            return self._json(400, {"error": "invalid json: " + str(e)})
+        if not isinstance(data, dict) or "generated_at" not in data:
+            return self._json(400, {"error": "missing generated_at"})
+        required = {"ai_news_uk_news", "scheduled_tasks", "voiceless_druid_alis_content", "home_tech_projects"}
+        missing = required - set(data.keys())
+        if missing:
+            return self._json(400, {"error": "missing keys: " + ",".join(sorted(missing))})
+        tmp = CONTENT_CACHE_FILE + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump(data, f, indent=2)
+        os.replace(tmp, CONTENT_CACHE_FILE)
+        return self._json(200, {"ok": True})
+
+
 if __name__ == "__main__":
+    ingest_srv = ThreadingHTTPServer(("0.0.0.0", INGEST_PORT), IngestHandler)
+    threading.Thread(target=ingest_srv.serve_forever, daemon=True).start()
     srv = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
-    print(f"GLANCE server on http://0.0.0.0:{PORT} (v{VERSION})")
+    print(f"GLANCE server on http://0.0.0.0:{PORT} (v{VERSION}), ingest on :{INGEST_PORT}")
     srv.serve_forever()
