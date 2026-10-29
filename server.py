@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""GLANCE -- v0.3.0
+"""GLANCE -- v0.3.1
 
 Daily briefing module for ALIS. Replaces the claude.ai-scheduled morning
 brief: assembles a daily summary from existing ALIS data sources (never
 re-derives their logic) and serves it over a small JSON API, so it can be
 pushed at 6:30am weekdays via alis-push and answered by voice
 ("Hey ALIS, what's happening today").
+
+v0.3.1: GET /api/glance/cached (last brief + text, rebuilt if >15 min old or ?fresh=1)
+  for the NEST GLANCE tile/panel, which reads it through alis-live's /api/glance proxy.
 
 v0.3.0 (29 Oct 2026, overnight build):
   - Morning push. A background thread sends one notification per day at
@@ -42,7 +45,7 @@ import urllib.error
 import urllib.parse
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
-VERSION = "0.3.0"
+VERSION = "0.3.1"
 BASE = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE, "data")
 STATE_FILE = os.path.join(DATA_DIR, "glance_state.json")
@@ -499,6 +502,19 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, {"ok": True, "version": VERSION})
         if path == "/api/glance":
             return self._json(200, build_brief())
+        if path == "/api/glance/cached":
+            # For the NEST GLANCE tile/panel: the last brief (rebuilt by the scheduler every
+            # 10 min) plus its plain-English text. ?fresh=1 rebuilds it now.
+            brief = load_state()
+            age = None
+            try:
+                age = time.time() - time.mktime(time.strptime(brief.get("generated_at", "")[:19], "%Y-%m-%dT%H:%M:%S"))
+            except Exception:
+                pass
+            if "fresh=1" in self.path or not brief.get("sections") or age is None or age > 900:
+                brief = build_brief()
+            return self._json(200, {"ok": True, "version": VERSION, "brief": brief, "text": compose(brief),
+                                    "push": load_json(PUSH_STATE_FILE)})
         if path == "/api/glance/preview":
             text = compose(build_brief())
             text["push_state"] = load_json(PUSH_STATE_FILE)
