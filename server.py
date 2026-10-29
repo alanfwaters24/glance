@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""GLANCE -- v0.3.5
+"""GLANCE -- v0.3.6
 
 Daily briefing module for ALIS. Replaces the claude.ai-scheduled morning
 brief: assembles a daily summary from existing ALIS data sources (never
 re-derives their logic) and serves it over a small JSON API, so it can be
 pushed at 6:30am weekdays via alis-push and answered by voice
 ("Hey ALIS, what's happening today").
+
+v0.3.6: spoken brief ends with a time/day-aware sign-off.
 
 v0.3.5: spoken text is made speakable (£25m -> 25 million pounds, 3.9% -> 3.9 percent,
   04:15 -> 4:15, 12:00 -> 12 o'clock). Push text and panel unchanged.
@@ -57,7 +59,7 @@ import urllib.error
 import urllib.parse
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
-VERSION = "0.3.5"
+VERSION = "0.3.6"
 BASE = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE, "data")
 STATE_FILE = os.path.join(DATA_DIR, "glance_state.json")
@@ -398,6 +400,21 @@ def speakable(t):
     return t
 
 
+def sign_off(now=None):
+    """v0.3.6: a proper ending instead of stopping dead after the last headline (time- and day-aware)."""
+    now = now or datetime.datetime.now()
+    h, wd = now.hour, now.weekday()
+    if 5 <= h < 12:
+        tail = {0: "Have a good start to the week.", 4: "Have a great Friday, the weekend's nearly here.",
+                5: "Enjoy your weekend.", 6: "Enjoy your Sunday."}.get(wd, "Have a great day.")
+        return "That's your GLANCE for this morning. " + tail
+    if 12 <= h < 18:
+        return "That's your GLANCE for this afternoon. Enjoy the rest of your day."
+    if 18 <= h < 22:
+        return "That's everything for today. Have a lovely evening."
+    return "That's everything for now. Sleep well."
+
+
 def compose(brief):
     """-> dict(title, body, speech) built from a brief. Body fits alis-push's 200-char limit."""
     sec = brief.get("sections", {})
@@ -465,6 +482,7 @@ def compose(brief):
             s.append("Locally: " + " ".join(local))   # v0.3.4: Stowmarket/Suffolk, max 3
         if ai:
             s.append(("And in AI news: " if (uk or local) else "In AI news: ") + " ".join(ai))
+    s.append(sign_off(now))
     speech = speakable(" ".join(s))
     return {"title": "Good morning — your GLANCE brief", "body": body, "speech": speech}
 
