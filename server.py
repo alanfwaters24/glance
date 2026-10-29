@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""GLANCE -- v0.3.2
+"""GLANCE -- v0.3.3
 
 Daily briefing module for ALIS. Replaces the claude.ai-scheduled morning
 brief: assembles a daily summary from existing ALIS data sources (never
 re-derives their logic) and serves it over a small JSON API, so it can be
 pushed at 6:30am weekdays via alis-push and answered by voice
 ("Hey ALIS, what's happening today").
+
+v0.3.3: spoken news reads whole headlines (no 140-char cut) - 3 UK then 2 AI, with
+  'In UK news' / 'And in AI news' lead-ins, matching the NEST panel order.
 
 v0.3.2: today's timed events that have already finished are left out (calendar
   "finished_today" counts them); wind reported as wind_mph whatever unit HA uses.
@@ -40,6 +43,7 @@ household-wide, unfiltered -- Alan's decision 29 Oct 2026).
 """
 import json
 import os
+import re
 import threading
 import time
 import datetime
@@ -48,7 +52,7 @@ import urllib.error
 import urllib.parse
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
-VERSION = "0.3.2"
+VERSION = "0.3.3"
 BASE = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE, "data")
 STATE_FILE = os.path.join(DATA_DIR, "glance_state.json")
@@ -419,11 +423,18 @@ def compose(brief):
         s.append("Heads up: VAULT is showing %s." % vault["level"])
     news = sec.get("ai_news_uk_news") or {}
     if not news.get("stale"):
-        uk = [n.get("headline", "") for n in (news.get("uk_news") or [])[:2]]
-        ai = [n.get("headline", "") for n in (news.get("ai_advancements") or [])[:1]]
-        heads = [h.split(";")[0].split(" — ")[0][:140] for h in uk + ai if h]
-        if heads:
-            s.append("In the news: " + " Also, ".join(h.rstrip(".") + "." for h in heads))
+        # v0.3.3: whole first sentence of each headline (no mid-sentence cut-offs), read in the
+        # same order as the NEST panel - UK first, then AI - with a clear lead-in for each.
+        def first_sentence(h):
+            h = " ".join(str(h).split())
+            m = re.match(r"(.+?[.!?])(?=\s+[A-Z\u00a3\d]|$)", h)   # keeps 88.2%, U.S. etc. intact
+            return (m.group(1) if m else h).rstrip(".!? ") + "."
+        uk = [first_sentence(n["headline"]) for n in (news.get("uk_news") or [])[:3] if n.get("headline")]
+        ai = [first_sentence(n["headline"]) for n in (news.get("ai_advancements") or [])[:2] if n.get("headline")]
+        if uk:
+            s.append("In UK news: " + " ".join(uk))
+        if ai:
+            s.append(("And in AI news: " if uk else "In AI news: ") + " ".join(ai))
     speech = " ".join(s)
     return {"title": "Good morning — your GLANCE brief", "body": body, "speech": speech}
 
