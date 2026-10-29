@@ -4,8 +4,7 @@ Pulls the latest GLANCE content_cache.json from Google Drive and writes it to
 ~/glance/data/content_cache.json. Run by cron on dev-automation.
 
 Looks for the most recently created file named 'glance_content_cache.json'
-in the service account's accessible Drive files, downloads it, and overwrites
-the local cache. The cloud scheduled task creates a NEW file with this name
+in the shared GLANCE Drive folder, downloads it, and overwrites the local cache. The cloud scheduled task creates a NEW file with this name
 each run (no in-place update), so we always want the newest one.
 """
 import json
@@ -55,14 +54,8 @@ def main():
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUT_PATH.write_text(json.dumps(data, indent=2))
     print(f"Wrote {OUT_PATH} ({len(content)} bytes), generated_at={data.get('generated_at')}")
-
-    # Clean up older copies in Drive so the folder doesn't pile up (keep newest 3)
-    for old in files[3:]:
-        try:
-            service.files().delete(fileId=old["id"]).execute()
-            print(f"Deleted old Drive copy {old['id']} ({old['createdTime']})")
-        except Exception as e:
-            print(f"Could not delete old copy {old['id']}: {e}", file=sys.stderr)
+    # No clean-up here: the service account is read-only and only the file owner can
+    # delete on a personal Drive. The claude.ai gather task trashes old copies itself.
 
 
 if __name__ == "__main__":
