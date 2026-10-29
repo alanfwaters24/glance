@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""GLANCE -- v0.3.3
+"""GLANCE -- v0.3.4
 
 Daily briefing module for ALIS. Replaces the claude.ai-scheduled morning
 brief: assembles a daily summary from existing ALIS data sources (never
 re-derives their logic) and serves it over a small JSON API, so it can be
 pushed at 6:30am weekdays via alis-push and answered by voice
 ("Hey ALIS, what's happening today").
+
+v0.3.4: local Stowmarket/Suffolk news (ai_news_uk_news.local_news, max 3) read after UK news.
 
 v0.3.3: spoken news reads whole headlines (no 140-char cut) - 3 UK then 2 AI, with
   'In UK news' / 'And in AI news' lead-ins, matching the NEST panel order.
@@ -52,7 +54,7 @@ import urllib.error
 import urllib.parse
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
-VERSION = "0.3.3"
+VERSION = "0.3.4"
 BASE = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE, "data")
 STATE_FILE = os.path.join(DATA_DIR, "glance_state.json")
@@ -431,10 +433,13 @@ def compose(brief):
             return (m.group(1) if m else h).rstrip(".!? ") + "."
         uk = [first_sentence(n["headline"]) for n in (news.get("uk_news") or [])[:3] if n.get("headline")]
         ai = [first_sentence(n["headline"]) for n in (news.get("ai_advancements") or [])[:2] if n.get("headline")]
+        local = [first_sentence(n["headline"]) for n in (news.get("local_news") or [])[:3] if n.get("headline")]
         if uk:
             s.append("In UK news: " + " ".join(uk))
+        if local:
+            s.append("Locally: " + " ".join(local))   # v0.3.4: Stowmarket/Suffolk, max 3
         if ai:
-            s.append(("And in AI news: " if uk else "In AI news: ") + " ".join(ai))
+            s.append(("And in AI news: " if (uk or local) else "In AI news: ") + " ".join(ai))
     speech = " ".join(s)
     return {"title": "Good morning — your GLANCE brief", "body": body, "speech": speech}
 
