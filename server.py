@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""GLANCE -- v0.3.4
+"""GLANCE -- v0.3.5
 
 Daily briefing module for ALIS. Replaces the claude.ai-scheduled morning
 brief: assembles a daily summary from existing ALIS data sources (never
 re-derives their logic) and serves it over a small JSON API, so it can be
 pushed at 6:30am weekdays via alis-push and answered by voice
 ("Hey ALIS, what's happening today").
+
+v0.3.5: spoken text is made speakable (£25m -> 25 million pounds, 3.9% -> 3.9 percent,
+  04:15 -> 4:15, 12:00 -> 12 o'clock). Push text and panel unchanged.
 
 v0.3.4: local Stowmarket/Suffolk news (ai_news_uk_news.local_news, max 3) read after UK news.
 
@@ -54,7 +57,7 @@ import urllib.error
 import urllib.parse
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
-VERSION = "0.3.4"
+VERSION = "0.3.5"
 BASE = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE, "data")
 STATE_FILE = os.path.join(DATA_DIR, "glance_state.json")
@@ -373,6 +376,28 @@ def _ordinal(n):
     return "%d%s" % (n, "th" if 11 <= n % 100 <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th"))
 
 
+# v0.3.5: make text sound right through Piper ("£25m" was read as "pound twenty-five mmm")
+_MULT = {"k": "thousand", "thousand": "thousand", "m": "million", "million": "million", "bn": "billion", "b": "billion",
+         "billion": "billion", "tn": "trillion", "trillion": "trillion"}
+_CUR = {"£": ("pound", "pounds"), "$": ("dollar", "dollars"), "€": ("euro", "euros")}
+_MONEY = re.compile(r"([£$€])(\d[\d,]*(?:\.\d+)?)(?:\s?(thousand|million|billion|trillion|bn|tn|k|m|b)\b)?", re.I)
+
+
+def speakable(t):
+    def money(m):
+        one, many = _CUR[m.group(1)]
+        num, mult = m.group(2), (m.group(3) or "").lower()
+        if mult:
+            return f"{num} {_MULT[mult]} {many}"
+        return f"{num} {one if num in ('1', '1.0', '1.00') else many}"
+    t = _MONEY.sub(money, t)
+    t = re.sub(r"(\d)\s?%", r"\1 percent", t)
+    t = re.sub(r"\b0(\d):(\d\d)\b", r"\1:\2", t)          # 04:15 -> 4:15
+    t = re.sub(r"\b(\d{1,2}):00\b", r"\1 o'clock", t)       # 12:00 -> 12 o'clock
+    t = t.replace(" & ", " and ")
+    return t
+
+
 def compose(brief):
     """-> dict(title, body, speech) built from a brief. Body fits alis-push's 200-char limit."""
     sec = brief.get("sections", {})
@@ -440,7 +465,7 @@ def compose(brief):
             s.append("Locally: " + " ".join(local))   # v0.3.4: Stowmarket/Suffolk, max 3
         if ai:
             s.append(("And in AI news: " if (uk or local) else "In AI news: ") + " ".join(ai))
-    speech = " ".join(s)
+    speech = speakable(" ".join(s))
     return {"title": "Good morning — your GLANCE brief", "body": body, "speech": speech}
 
 
