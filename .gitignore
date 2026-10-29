@@ -1,5 +1,6 @@
-data/*
-!data/content_cache.json
+data/
 config.json
+.secrets/
+.venv/
 __pycache__/
 *.pyc
